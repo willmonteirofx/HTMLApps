@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figma-like Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        #canvas {
+            border: 1px solid #000;
+        }
+        .sidebar {
+            height: 100vh;
+            overflow-y: auto;
+        }
+        #layers ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        #layers li {
+            cursor: move;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #layers li:hover {
+            background-color: #e9ecef;
+        }
+        .dragging {
+            opacity: 0.5;
+        }
+        #htmlOutput {
+            width: 100%;
+            height: 200px;
+        }
+        .delete-layer {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 2px 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <div class="col-2 sidebar bg-light p-3">
+                <div class="mb-3">
+                    <button id="rectangle" class="btn btn-sm btn-outline-primary me-1">Rectangle</button>
+                    <button id="circle" class="btn btn-sm btn-outline-primary me-1">Circle</button>
+                    <button id="text" class="btn btn-sm btn-outline-primary">Text</button>
+                </div>
+                <h3>Layers</h3>
+                <ul id="layersList" class="mb-3"></ul>
+            </div>
+            <div class="col-8 p-0">
+                <canvas id="canvas" width="1280" height="720"></canvas>
+            </div>
+            <div class="col-2 sidebar bg-light p-3">
+                <div id="controls" class="mb-3">
+                    <h3>Element Properties</h3>
+                    <div class="mb-2">
+                        <label for="elementName" class="form-label">Name:</label>
+                        <input type="text" id="elementName" class="form-control form-control-sm">
+                    </div>
+                    <div class="mb-2">
+                        <label for="fillColor" class="form-label">Fill Color:</label>
+                        <input type="color" id="fillColor" class="form-control form-control-sm">
+                    </div>
+                    <div class="mb-2">
+                        <label for="borderColor" class="form-label">Border Color:</label>
+                        <input type="color" id="borderColor" class="form-control form-control-sm">
+                    </div>
+                    <div class="mb-2 form-check">
+                        <input type="checkbox" id="removeBorder" class="form-check-input" checked>
+                        <label for="removeBorder" class="form-check-label">Remove Border</label>
+                    </div>
+                    <div class="mb-2 row">
+                        <div class="col-6">
+                            <label for="posX" class="form-label">Position X:</label>
+                            <input type="number" id="posX" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-6">
+                            <label for="posY" class="form-label">Position Y:</label>
+                            <input type="number" id="posY" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <div class="mb-2 row">
+                        <div class="col-6">
+                            <label for="shapeWidth" class="form-label">Width:</label>
+                            <input type="number" id="shapeWidth" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-6">
+                            <label for="shapeHeight" class="form-label">Height:</label>
+                            <input type="number" id="shapeHeight" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Auto-layout:</label>
+                        <div class="form-check">
+                            <input type="checkbox" id="extendLeft" class="form-check-input">
+                            <label for="extendLeft" class="form-check-label">Extend Left</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" id="extendRight" class="form-check-input">
+                            <label for="extendRight" class="form-check-label">Extend Right</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" id="extendTop" class="form-check-input">
+                            <label for="extendTop" class="form-check-label">Extend Top</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" id="extendBottom" class="form-check-input">
+                            <label for="extendBottom" class="form-check-label">Extend Bottom</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" id="extendHorizontal" class="form-check-input">
+                            <label for="extendHorizontal" class="form-check-label">Expand Horizontal</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" id="extendVertical" class="form-check-input">
+                            <label for="extendVertical" class="form-check-label">Expand Vertical</label>
+                        </div>
+                    </div>
+                    <div class="mb-2 text-only">
+                        <label for="fontSize" class="form-label">Font Size:</label>
+                        <input type="number" id="fontSize" class="form-control form-control-sm">
+                    </div>
+                    <div class="mb-2 text-only">
+                        <label for="fontFamily" class="form-label">Font Family:</label>
+                        <select id="fontFamily" class="form-select form-select-sm"></select>
+                    </div>
+                    <button id="applyChanges" class="btn btn-primary btn-sm">Apply Changes</button>
+                </div>
+                <h3>HTML Output</h3>
+                <textarea id="htmlOutput" class="form-control" readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let isMoving = false;
+        let startX, startY;
+        let shapes = [];
+        let selectedShape = null;
+
+        function Shape(type, x, y, width, height, fillColor, borderColor, text = '', fontSize = 16, fontFamily = 'Arial') {
+            this.type = type;
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.originalX = x;
+            this.originalY = y;
+            this.originalWidth = width;
+            this.originalHeight = height;
+            this.fillColor = fillColor;
+            this.borderColor = borderColor;
+            this.text = text;
+            this.fontSize = fontSize;
+            this.fontFamily = fontFamily;
+            this.name = type === 'text' ? text : `${type} ${shapes.length + 1}`;
+            this.removeBorder = false;
+            this.extendLeft = false;
+            this.extendRight = false;
+            this.extendTop = false;
+            this.extendBottom = false;
+            this.extendHorizontal = false;
+            this.extendVertical = false;
+        }
+
+        function drawRectangle(shape) {
+            ctx.fillStyle = shape.fillColor;
+            ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+            if (!shape.removeBorder) {
+                ctx.strokeStyle = shape.borderColor;
+                ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+            }
+        }
+
+        function drawCircle(shape) {
+            ctx.fillStyle = shape.fillColor;
+            ctx.beginPath();
+            ctx.arc(shape.x + shape.width / 2, shape.y + shape.height / 2, shape.width / 2, 0, 2 * Math.PI);
+            ctx.fill();
+            if (!shape.removeBorder) {
+                ctx.strokeStyle = shape.borderColor;
+                ctx.stroke();
+            }
+        }
+
+        function drawText(shape) {
+            ctx.fillStyle = shape.fillColor;
+            ctx.font = `${shape.fontSize}px ${shape.fontFamily}`;
+            ctx.fillText(shape.text, shape.x, shape.y + shape.fontSize);
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            shapes.forEach(shape => {
+                if (shape.extendHorizontal) {
+                    shape.x = 0;
+                    shape.width = canvas.width;
+                } else {
+                    if (shape.extendLeft) {
+                        shape.width = shape.originalWidth + shape.originalX - shape.x;
+                        shape.x = 0;
+                    } else {
+                        shape.x = shape.originalX;
+                        shape.width = shape.originalWidth;
+                    }
+                    if (shape.extendRight) {
+                        shape.width = canvas.width - shape.x;
+                    }
+                }
+
+                if (shape.extendVertical) {
+                    shape.y = 0;
+                    shape.height = canvas.height;
+                } else {
+                    if (shape.extendTop) {
+                        shape.height = shape.originalHeight + shape.originalY - shape.y;
+                        shape.y = 0;
+                    } else {
+                        shape.y = shape.originalY;
+                        shape.height = shape.originalHeight;
+                    }
+                    if (shape.extendBottom) {
+                        shape.height = canvas.height - shape.y;
+                    }
+                }
+
+                if (shape.type === 'rectangle') {
+                    drawRectangle(shape);
+                } else if (shape.type === 'circle') {
+                    drawCircle(shape);
+                } else if (shape.type === 'text') {
+                    drawText(shape);
+                }
+            });
+            updateHtmlOutput();
+        }
+
+        function updateLayersList() {
+            const layersList = document.getElementById('layersList');
+            layersList.innerHTML = '';
+            shapes.forEach((shape, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>${shape.name}</span>
+                    <button class="delete-layer btn btn-danger btn-sm" data-index="${index}">X</button>
+                `;
+                li.draggable = true;
+                li.dataset.index = index;
+                li.style.cursor = 'move';
+                li.onclick = (e) => {
+                    if (e.target.classList.contains('delete-layer')) {
+                        deleteShape(index);
+                    } else {
+                        selectShape(index);
+                    }
+                };
+                li.ondragstart = dragStart;
+                li.ondragover = dragOver;
+                li.ondrop = drop;
+                layersList.appendChild(li);
+            });
+        }
+
+        function deleteShape(index) {
+            shapes.splice(index, 1);
+            updateLayersList();
+            redrawCanvas();
+            if (selectedShape === shapes[index]) {
+                selectedShape = null;
+                updateControls();
+            }
+        }
+
+        function dragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.dataset.index);
+            e.target.classList.add('dragging');
+        }
+
+        function dragOver(e) {
+            e.preventDefault();
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+            const toIndex = parseInt(e.target.closest('li').dataset.index);
+            if (fromIndex !== toIndex) {
+                const [movedShape] = shapes.splice(fromIndex, 1);
+                shapes.splice(toIndex, 0, movedShape);
+                updateLayersList();
+                redrawCanvas();
+            }
+            e.target.classList.remove('dragging');
+        }
+
+        function selectShape(index) {
+            selectedShape = shapes[index];
+            updateControls();
+        }
+
+        function updateControls() {
+            const controls = document.getElementById('controls');
+            if (selectedShape) {
+                controls.classList.remove('d-none');
+                document.getElementById('elementName').value = selectedShape.name;
+                document.getElementById('fillColor').value = selectedShape.fillColor;
+                document.getElementById('borderColor').value = selectedShape.borderColor;
+                document.getElementById('removeBorder').checked = selectedShape.removeBorder;
+                document.getElementById('posX').value = selectedShape.originalX;
+                document.getElementById('posY').value = selectedShape.originalY;
+                document.getElementById('shapeWidth').value = selectedShape.originalWidth;
+                document.getElementById('shapeHeight').value = selectedShape.originalHeight;
+                document.getElementById('extendLeft').checked = selectedShape.extendLeft;
+                document.getElementById('extendRight').checked = selectedShape.extendRight;
+                document.getElementById('extendTop').checked = selectedShape.extendTop;
+                document.getElementById('extendBottom').checked = selectedShape.extendBottom;
+                document.getElementById('extendHorizontal').checked = selectedShape.extendHorizontal;
+                document.getElementById('extendVertical').checked = selectedShape.extendVertical;
+                
+                const textOnlyElements = document.querySelectorAll('.text-only');
+                if (selectedShape.type === 'text') {
+                    textOnlyElements.forEach(el => el.classList.remove('d-none'));
+                    document.getElementById('fontSize').value = selectedShape.fontSize;
+                    document.getElementById('fontFamily').value = selectedShape.fontFamily;
+                } else {
+                    textOnlyElements.forEach(el => el.classList.add('d-none'));
+                }
+            } else {
+                controls.classList.add('d-none');
+            }
+        }
+
+        function updateHtmlOutput() {
+            const htmlOutput = document.getElementById('htmlOutput');
+            let htmlContent = '';
+            shapes.forEach(shape => {
+                if (shape.type === 'rectangle') {
+                    htmlContent += `<div style="position: absolute; left: ${shape.x}px; top: ${shape.y}px; width: ${shape.width}px; height: ${shape.height}px; background-color: ${shape.fillColor}; ${shape.removeBorder ? '' : `border: 1px solid ${shape.borderColor};`}"></div>\n`;
+                } else if (shape.type === 'circle') {
+                    htmlContent += `<div style="position: absolute; left: ${shape.x}px; top: ${shape.y}px; width: ${shape.width}px; height: ${shape.height}px; background-color: ${shape.fillColor}; ${shape.removeBorder ? '' : `border: 1px solid ${shape.borderColor};`} border-radius: 50%;"></div>\n`;
+                } else if (shape.type === 'text') {
+                    htmlContent += `<div style="position: absolute; left: ${shape.x}px; top: ${shape.y}px; color: ${shape.fillColor}; font-size: ${shape.fontSize}px; font-family: ${shape.fontFamily};">${shape.text}</div>\n`;
+                }
+            });
+            htmlOutput.value = htmlContent;
+        }
+
+        function isPointInShape(x, y, shape) {
+            if (shape.type === 'rectangle') {
+                return x >= shape.x && x <= shape.x + shape.width &&
+                       y >= shape.y && y <= shape.y + shape.height;
+            } else if (shape.type === 'circle') {
+                const centerX = shape.x + shape.width / 2;
+                const centerY = shape.y + shape.height / 2;
+                const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                return distance <= shape.width / 2;
+            } else if (shape.type === 'text') {
+                return x >= shape.x && x <= shape.x + ctx.measureText(shape.text).width &&
+                       y >= shape.y && y <= shape.y + shape.fontSize;
+            }
+            return false;
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 2) { // Right mouse button
+                const mouseX = e.clientX - canvas.offsetLeft;
+                const mouseY = e.clientY - canvas.offsetTop;
+                
+                // Reverse the shapes array to check from top to bottom
+                for (let i = shapes.length - 1; i >= 0; i--) {
+                    if (isPointInShape(mouseX, mouseY, shapes[i])) {
+                        selectedShape = shapes[i];
+                        isMoving = true;
+                        startX = mouseX - selectedShape.x;
+                        startY = mouseY - selectedShape.y;
+                        updateControls();
+                        break;
+                    }
+                }
+            } else {
+                isDrawing = true;
+                startX = e.clientX - canvas.offsetLeft;
+                startY = e.clientY - canvas.offsetTop;
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const currentX = e.clientX - canvas.offsetLeft;
+            const currentY = e.clientY - canvas.offsetTop;
+            
+            if (isMoving && selectedShape) {
+                selectedShape.originalX = currentX - startX;
+                selectedShape.originalY = currentY - startY;
+                redrawCanvas();
+                updateControls();
+            } else if (isDrawing) {
+                redrawCanvas();
+                if (currentTool === 'rectangle') {
+                    ctx.strokeRect(startX, startY, currentX - startX, currentY - startY);
+                } else if (currentTool === 'circle') {
+                    const radius = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
+                    ctx.beginPath();
+                    ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (isMoving) {
+                isMoving = false;
+            } else if (isDrawing) {
+                isDrawing = false;
+                const endX = e.clientX - canvas.offsetLeft;
+                const endY = e.clientY - canvas.offsetTop;
+                
+                let newShape;
+                if (currentTool === 'text') {
+                    const text = prompt('Enter text:');
+                    if (text) {
+                        newShape = new Shape(
+                            'text',
+                            startX,
+                            startY,
+                            0,
+                            0,
+                            '#000000',
+                            '#000000',
+                            text
+                        );
+                    }
+                } else {
+                    newShape = new Shape(
+                        currentTool,
+                        Math.min(startX, endX),
+                        Math.min(startY, endY),
+                        Math.abs(endX - startX),
+                        Math.abs(endY - startY),
+                        '#ffffff',
+                        '#000000'
+                    );
+                }
+                
+                if (newShape) {
+                    shapes.push(newShape);
+                    selectedShape = newShape;  // Automatically select the new shape
+                    redrawCanvas();
+                    updateLayersList();
+                    updateControls();  // Update controls to show properties of the new shape
+                }
+            }
+        });
+
+        canvas.addEventListener('dblclick', (e) => {
+            const mouseX = e.clientX - canvas.offsetLeft;
+            const mouseY = e.clientY - canvas.offsetTop;
+            
+            // Reverse the shapes array to check from top to bottom
+            for (let i = shapes.length - 1; i >= 0; i--) {
+                if (isPointInShape(mouseX, mouseY, shapes[i])) {
+                    selectedShape = shapes[i];
+                    updateControls();
+                    break;
+                }
+            }
+        });
+
+        document.getElementById('fillColor').addEventListener('input', (e) => {
+            if (selectedShape) {
+                selectedShape.fillColor = e.target.value;
+                redrawCanvas();
+            }
+        });
+
+        document.getElementById('borderColor').addEventListener('input', (e) => {
+            if (selectedShape) {
+                selectedShape.borderColor = e.target.value;
+                redrawCanvas();
+            }
+        });
+
+        document.getElementById('removeBorder').addEventListener('change', (e) => {
+            if (selectedShape) {
+                selectedShape.removeBorder = e.target.checked;
+                redrawCanvas();
+            }
+        });
+
+        document.getElementById('extendLeft').addEventListener('change', (e) => {
+            if (selectedShape) {
+                selectedShape.extendLeft = e.target.checked;
+                redrawCanvas();
+            }
+        });
+
+        document.getElementById('extendRight').addEventListener('change', (e) => {
+            if (selectedShape) {
+                selectedShape.extendRight = e.target.checked;
+                redrawCanvas();
+            }
+        });
+
+        document.getElementById('extendTop').addEventListener('change', (e) => {
+            if (selectedShape) {
+                selectedShape.extendTop = e.target.checked;
+                redrawCanvas();
+            }
+        });
+
+        document.getElementById('extendBottom').addEventListener('change', (e) => {
+            if (selectedShape) {
+                selectedShape.extendBottom = e.target.checked;
+                redrawCanvas();
+            }
+        });
+
+        document.getElementById('extendHorizontal').addEventListener('change', (e) => {
+            if (selectedShape) {
+                selectedShape.extendHorizontal = e.target.checked;
+                if (e.target.checked) {
+                    selectedShape.extendLeft = false;
+                    selectedShape.extendRight = false;
+                    document.getElementById('extendLeft').checked = false;
+                    document.getElementById('extendRight').checked = false;
+                }
+                redrawCanvas();
+            }
+        });
+
+        document.getElementById('extendVertical').addEventListener('change', (e) => {
+            if (selectedShape) {
+                selectedShape.extendVertical = e.target.checked;
+                if (e.target.checked) {
+                    selectedShape.extendTop = false;
+                    selectedShape.extendBottom = false;
+                    document.getElementById('extendTop').checked = false;
+                    document.getElementById('extendBottom').checked = false;
+                }
+                redrawCanvas();
+            }
+        });
+
+        document.getElementById('applyChanges').addEventListener('click', () => {
+            if (selectedShape) {
+                selectedShape.name = document.getElementById('elementName').value;
+                selectedShape.originalX = parseInt(document.getElementById('posX').value);
+                selectedShape.originalY = parseInt(document.getElementById('posY').value);
+                selectedShape.originalWidth = parseInt(document.getElementById('shapeWidth').value);
+                selectedShape.originalHeight = parseInt(document.getElementById('shapeHeight').value);
+                selectedShape.removeBorder = document.getElementById('removeBorder').checked;
+                selectedShape.extendLeft = document.getElementById('extendLeft').checked;
+                selectedShape.extendRight = document.getElementById('extendRight').checked;
+                selectedShape.extendTop = document.getElementById('extendTop').checked;
+                selectedShape.extendBottom = document.getElementById('extendBottom').checked;
+                selectedShape.extendHorizontal = document.getElementById('extendHorizontal').checked;
+                selectedShape.extendVertical = document.getElementById('extendVertical').checked;
+                if (selectedShape.type === 'text') {
+                    selectedShape.fontSize = parseInt(document.getElementById('fontSize').value);
+                    selectedShape.fontFamily = document.getElementById('fontFamily').value;
+                    selectedShape.text = selectedShape.name;
+                }
+                redrawCanvas();
+                updateLayersList();
+            }
+        });
+
+        let currentTool = 'rectangle';
+        document.getElementById('rectangle').addEventListener('click', () => currentTool = 'rectangle');
+        document.getElementById('circle').addEventListener('click', () => currentTool = 'circle');
+        document.getElementById('text').addEventListener('click', () => currentTool = 'text');
+
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Populate font family dropdown
+        const fontFamilySelect = document.getElementById('fontFamily');
+        const fonts = [
+            'Arial', 'Helvetica', 'Times New Roman', 'Courier', 'Verdana', 
+            'Georgia', 'Palatino', 'Garamond', 'Bookman', 'Comic Sans MS', 
+            'Trebuchet MS', 'Arial Black', 'Impact'
+        ];
+        fonts.forEach(font => {
+            const option = document.createElement('option');
+            option.value = font;
+            option.textContent = font;
+            fontFamilySelect.appendChild(option);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Paint</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        #canvas {
+            border: 1px solid #dee2e6;
+        }
+        #brush-display {
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-md-9">
+                <canvas id="canvas" width="800" height="600"></canvas>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label for="color" class="form-label">Color:</label>
+                    <input type="color" id="color" class="form-control form-control-color">
+                </div>
+                <div class="mb-3">
+                    <label for="size" class="form-label">Size:</label>
+                    <input type="range" id="size" class="form-range" min="1" max="50" value="5">
+                </div>
+                <div class="mb-3">
+                    <label for="hardness" class="form-label">Hardness:</label>
+                    <input type="range" id="hardness" class="form-range" min="0" max="100" value="50">
+                </div>
+                <div class="mb-3">
+                    <label for="opacity" class="form-label">Opacity:</label>
+                    <input type="range" id="opacity" class="form-range" min="0" max="100" value="100">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Brush Preview:</label>
+                    <canvas id="brush-display" width="80" height="80" class="d-block mx-auto"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('color');
+        const sizePicker = document.getElementById('size');
+        const hardnessPicker = document.getElementById('hardness');
+        const opacityPicker = document.getElementById('opacity');
+        const brushDisplayCtx = document.getElementById('brush-display').getContext('2d');
+        let featherGradient;
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        function createFeatherGradient(radius, hardness) {
+            const innerRadius = Math.max(0, radius * (1 - Math.pow(1 - hardness, 3)));
+            const gradient = ctx.createRadialGradient(0, 0, innerRadius, 0, 0, radius);
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            return gradient;
+        }
+
+        function updateBrushDisplay() {
+            const radius = parseInt(sizePicker.value);
+            const hardness = parseInt(hardnessPicker.value) / 100;
+            const color = colorPicker.value;
+            const opacity = parseInt(opacityPicker.value) / 100;
+
+            brushDisplayCtx.clearRect(0, 0, 80, 80);
+            brushDisplayCtx.save();
+            brushDisplayCtx.translate(40, 40);
+
+            featherGradient = createFeatherGradient(radius, hardness);
+            brushDisplayCtx.fillStyle = color;
+            brushDisplayCtx.globalAlpha = opacity;
+            brushDisplayCtx.beginPath();
+            brushDisplayCtx.arc(0, 0, radius, 0, Math.PI * 2);
+            brushDisplayCtx.fill();
+
+            brushDisplayCtx.globalCompositeOperation = 'destination-in';
+            brushDisplayCtx.fillStyle = featherGradient;
+            brushDisplayCtx.fillRect(-radius, -radius, radius * 2, radius * 2);
+
+            brushDisplayCtx.restore();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            const color = colorPicker.value;
+            const size = parseInt(sizePicker.value);
+            const hardness = parseInt(hardnessPicker.value) / 100;
+            const opacity = parseInt(opacityPicker.value) / 100;
+
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = size * 2;
+
+            const dx = e.offsetX - lastX;
+            const dy = e.offsetY - lastY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            for (let i = 0; i < distance; i += 1) {
+                const x = lastX + (i / distance) * dx;
+                const y = lastY + (i / distance) * dy;
+
+                const innerRadius = Math.max(0, size * (1 - Math.pow(1 - hardness, 3)));
+                const gradient = ctx.createRadialGradient(
+                    x, y, innerRadius,
+                    x, y, size
+                );
+                const rgbaColor = `rgba(${parseInt(color.slice(1, 3), 16)}, ${parseInt(color.slice(3, 5), 16)}, ${parseInt(color.slice(5, 7), 16)}, ${opacity})`;
+                gradient.addColorStop(0, rgbaColor);
+                gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        });
+
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mouseout', () => isDrawing = false);
+
+        colorPicker.addEventListener('input', updateBrushDisplay);
+        sizePicker.addEventListener('input', updateBrushDisplay);
+        hardnessPicker.addEventListener('input', updateBrushDisplay);
+        opacityPicker.addEventListener('input', updateBrushDisplay);
+
+        // Initial setup
+        updateBrushDisplay();
+    </script>
+</body>
+</html>

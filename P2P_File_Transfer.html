@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P File Transfer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">P2P File Transfer</h1>
+        <div id="role-info" class="alert alert-info mb-4"></div>
+        <div id="peer-id" class="mb-4"></div>
+        <div id="connect-form" class="mb-4">
+            <input type="text" id="host-id" class="form-control mb-2" placeholder="Enter host ID">
+            <button id="connect-btn" class="btn btn-primary">Connect to Host</button>
+        </div>
+        <div id="dropzone" class="p-5 mb-4 bg-light border rounded">
+            <p class="text-center">Drop your file here</p>
+        </div>
+        <div id="status" class="alert alert-info" style="display: none;"></div>
+    </div>
+
+    <script>
+        const peer = new Peer();
+        let connections = [];
+
+        const roleInfo = document.getElementById('role-info');
+        const peerIdElement = document.getElementById('peer-id');
+        const connectForm = document.getElementById('connect-form');
+        const hostIdInput = document.getElementById('host-id');
+        const connectBtn = document.getElementById('connect-btn');
+        const dropzone = document.getElementById('dropzone');
+        const status = document.getElementById('status');
+
+        peer.on('open', (id) => {
+            console.log('My peer ID is: ' + id);
+            peerIdElement.innerHTML = `<strong>Your Peer ID:</strong> <span class="badge bg-secondary">${id}</span>`;
+        });
+
+        peer.on('connection', (conn) => {
+            connections.push(conn);
+            conn.on('data', receiveFile);
+            roleInfo.textContent = "Connected to a peer. You can now share files.";
+        });
+
+        connectBtn.addEventListener('click', () => {
+            const hostId = hostIdInput.value.trim();
+            if (hostId) {
+                const conn = peer.connect(hostId);
+                conn.on('open', () => {
+                    connections.push(conn);
+                    roleInfo.textContent = "Connected to host. You can now share files.";
+                });
+                conn.on('data', receiveFile);
+            }
+        });
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('bg-info');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('bg-info');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('bg-info');
+            
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                sendFile(file);
+            }
+        });
+
+        function sendFile(file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const fileData = {
+                    name: file.name,
+                    type: file.type,
+                    data: event.target.result
+                };
+                connections.forEach(conn => conn.send(fileData));
+                status.textContent = `File ${file.name} has been sent.`;
+                status.style.display = 'block';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function receiveFile(fileData) {
+            const blob = new Blob([fileData.data], { type: fileData.type });
+            const url = URL.createObjectURL(blob);
+            
+            if (window.Notification && Notification.permission === "granted") {
+                new Notification('New file received', {
+                    body: `${fileData.name} is ready to download.`
+                });
+            }
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileData.name;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            status.textContent = `File ${fileData.name} has been downloaded.`;
+            status.style.display = 'block';
+        }
+
+        if (window.Notification) {
+            Notification.requestPermission();
+        }
+    </script>
+</body>
+</html>

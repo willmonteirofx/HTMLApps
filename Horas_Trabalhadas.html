@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horas Trabalhadas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .log {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            height: calc(100vh - 200px);
+            overflow-y: auto;
+            border: 1px solid #16213e;
+            padding: 1rem;
+            border-radius: 8px;
+            background-color: #0f3460;
+            scrollbar-width: thin;
+            scrollbar-color: #e94560 #16213e;
+        }
+        .log::-webkit-scrollbar {
+            width: 8px;
+        }
+        .log::-webkit-scrollbar-track {
+            background: #16213e;
+        }
+        .log::-webkit-scrollbar-thumb {
+            background-color: #e94560;
+            border-radius: 4px;
+        }
+        #timer {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-weight: 700;
+            color: #e94560;
+        }
+        #timeLog {
+            height: calc(100vh - 200px);
+            resize: none;
+            background-color: #0f3460;
+            color: #e0e0e0;
+            border: 1px solid #16213e;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .btn {
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background-color: #e94560;
+            border-color: #e94560;
+        }
+        .btn-primary:hover {
+            background-color: #d63551;
+            border-color: #d63551;
+        }
+        .btn-danger {
+            background-color: #16213e;
+            border-color: #16213e;
+        }
+        .btn-danger:hover {
+            background-color: #0f172a;
+            border-color: #0f172a;
+        }
+        .col-md-4 {
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-4">
+                <div id="timer">00:00:00</div>
+                <div class="buttons">
+                    <button id="play-pause" class="btn btn-primary btn-lg">Play</button>
+                    <button id="stop" class="btn btn-danger btn-lg">Encerrar</button>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="log" id="log"></div>
+            </div>
+            <div class="col-md-4">
+                <textarea id="timeLog" class="form-control" readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isPlaying = false;
+        let startTime = null;
+        let endTime = null;
+        let log = document.getElementById('log');
+        let timeLog = document.getElementById('timeLog');
+        let started = false;
+        let totalSeconds = 0;
+        let timerInterval;
+        let lastPauseTime = null;
+        let totalPausedTime = 0;
+        let lastLoggedTime = 0;
+
+        function updateTimer() {
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            document.getElementById('timer').innerText = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function scrollLogToBottom() {
+            log.scrollTop = log.scrollHeight;
+        }
+
+        document.getElementById('play-pause').addEventListener('click', () => {
+            if (!isPlaying && !started) {
+                startTime = new Date();
+                log.innerHTML += `<p><strong>Comecei</strong><br>${formatTime(startTime)}</p>`;
+                isPlaying = true;
+                started = true;
+                document.getElementById('play-pause').innerText = 'Pause';
+                timerInterval = setInterval(() => {
+                    totalSeconds++;
+                    updateTimer();
+                }, 1000);
+                lastLoggedTime = 0;
+            } else if (!isPlaying) {
+                endTime = new Date();
+                log.innerHTML += `<p><strong>Voltei</strong><br>${formatTime(endTime)}</p>`;
+                isPlaying = true;
+                document.getElementById('play-pause').innerText = 'Pause';
+                timerInterval = setInterval(() => {
+                    totalSeconds++;
+                    updateTimer();
+                }, 1000);
+                scrollLogToBottom();
+            } else {
+                endTime = new Date();
+                log.innerHTML += `<p><strong>Pausei</strong><br>${formatTime(endTime)}</p>`;
+                isPlaying = false;
+                document.getElementById('play-pause').innerText = 'Play';
+                clearInterval(timerInterval);
+                updateTimeLog();
+                scrollLogToBottom();
+            }
+            if (isPlaying) {
+                updateTimeLog();
+            }
+        });
+
+        document.getElementById('stop').addEventListener('click', () => {
+            if (isPlaying) {
+                endTime = new Date();
+                log.innerHTML += `<p><strong>Encerrei</strong><br>${formatTime(endTime)}</p>`;
+                isPlaying = false;
+                document.getElementById('play-pause').innerText = 'Play';
+                clearInterval(timerInterval);
+            } else {
+                log.innerHTML += `<p><strong>Encerrei</strong><br>${formatTime(new Date())}</p>`;
+            }
+            log.innerHTML += `<p><strong>Total</strong><br>${formatSeconds(totalSeconds + totalPausedTime)}</p>`;
+            totalSeconds = 0;
+            totalPausedTime = 0;
+            lastLoggedTime = 0;
+            updateTimer();
+            started = false;
+            scrollLogToBottom();
+            // Removido updateTimeLog() daqui para não adicionar ao log da direita ao encerrar
+        });
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('pt-BR');
+        }
+
+        function formatSeconds(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const remainingSeconds = seconds % 60;
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+        }
+
+        function updateTimeLog() {
+            if (isPlaying) return;
+            const currentTime = totalSeconds + totalPausedTime;
+            const timeToLog = currentTime - lastLoggedTime;
+            const formattedTime = formatSeconds(timeToLog);
+            timeLog.value += `+${formattedTime}\n`;
+            lastLoggedTime = currentTime;
+        }
+    </script>
+</body>
+</html>
